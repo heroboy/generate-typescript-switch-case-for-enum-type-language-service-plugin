@@ -1,13 +1,4 @@
-import { TypeChecker, Expression } from 'typescript/lib/tsserverlibrary'
-
-// This is a sample plugin that does two things, first is the same as https://github.com/Microsoft/TypeScript/wiki/Writing-a-Language-Service-Plugin
-// this is, it removes some words from code autocompletion configured in tsconfig.json user's file
-// 
-// Also it implements a refactor suggestion, that appears when user has cursor over a class or interface declaration name. It will replace that name with a fixed string - nothing useful. 
-//
-// **Screencast**: 
-// 
-// ![See it in action](../plugin-screencast.gif)
+//import { TypeChecker, Expression } from 'typescript/lib/tsserverlibrary'
 
 function init(modules: { typescript: typeof import('typescript/lib/tsserverlibrary') })
 {
@@ -184,9 +175,9 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 		return proxy
 	}
 
-	function extractEnumMemberList(type: ts.Type, typeChecker: TypeChecker, node: ts.Node): ts.Expression[] | undefined
+	function extractEnumMemberList(type: ts.Type, typeChecker: ts.TypeChecker, node: ts.Node): ts.Expression[] | undefined
 	{
-		let list: Expression[];
+		let list: ts.Expression[];
 		/*
 		 support 
 		 Enum
@@ -210,7 +201,7 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			support
 			type Union = 1|2|true;
 
-			//boolean is a Union => true|false
+			boolean is a Union => true|false
 		 */
 		else if (type.flags & ts.TypeFlags.Union)
 		{
