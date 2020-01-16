@@ -3,7 +3,7 @@
 function init(modules: { typescript: typeof import('typescript/lib/tsserverlibrary') })
 {
 	const ts = modules.typescript
-	function create(info: ts.server.PluginCreateInfo)
+	function create(info: ts.server.PluginCreateInfo): ts.LanguageService
 	{
 		const proxy: ts.LanguageService = Object.create(null)
 		for (let k of Object.keys(info.languageService) as Array<keyof ts.LanguageService>)
