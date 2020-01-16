@@ -17,6 +17,7 @@ function init(modules) {
                 !ts.isSwitchStatement(nodeAtCursor)) {
                 nodeAtCursor = nodeAtCursor.parent;
             }
+            //Is the node is an empty switch statement?
             if (nodeAtCursor &&
                 ts.isSwitchStatement(nodeAtCursor) &&
                 nodeAtCursor.caseBlock.clauses.length === 0 &&
@@ -24,6 +25,7 @@ function init(modules) {
              {
                 let typeChecker = info.languageService.getProgram().getTypeChecker();
                 let expType = typeChecker.getTypeAtLocation(nodeAtCursor.expression);
+                //Is the exp type is an Enum type?
                 let list = extractEnumMemberList(expType, typeChecker, nodeAtCursor);
                 if (list) {
                     if (simple)
@@ -80,55 +82,25 @@ function init(modules) {
             if (actionName === 'generate-switch-case') {
                 let obj = extractEnumInfo(fileName, positionOrRange, false);
                 if (obj) {
-                    if (1) {
-                        const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
-                        let clause = [];
-                        obj.nodeList.forEach(item => {
-                            //ts.createPropertyAccessChain()
-                            clause.push(ts.createCaseClause(item, [ts.createBreak()]));
-                        });
-                        clause.push(ts.createDefaultClause([ts.createBreak()]));
-                        let caseBlockNode = ts.createCaseBlock(clause);
-                        let switchNode = ts.createSwitch(ts.getMutableClone(obj.switchNode.expression), caseBlockNode);
-                        let edits = ts['textChanges'].ChangeTracker.with({
-                            host: info.languageServiceHost,
-                            formatContext: ts['formatting'].getFormatContext(formatOptions),
-                            preferences: preferences
-                        }, (tracker) => {
-                            //tracker.insertNodesAt(sourceFile, obj.pos, clause, {});
-                            //tracker.replaceNode(sourceFile, obj.caseBlockNode, caseBlockNode, {});
-                            tracker.replaceNode(sourceFile, obj.switchNode, switchNode, undefined);
-                        });
-                        return { edits };
-                    }
-                    else {
-                        // let newText = [];
-                        // let indent = info.languageService.getIndentationAtPosition(fileName, obj.pos, formatOptions) + formatOptions.indentSize;
-                        // let indentText = '';
-                        // for (let i = 0; i < indent; ++i)
-                        // {
-                        // 	indentText += ' ';
-                        // }
-                        // newText.push(formatOptions.newLineCharacter);
-                        // obj.list.forEach(item =>
-                        // {
-                        // 	newText.push(indentText + 'case ' + item + ': break;' + formatOptions.newLineCharacter);
-                        // })
-                        // newText.push(indentText + 'default: break;');
-                        // return {
-                        // 	edits: [
-                        // 		{
-                        // 			fileName,
-                        // 			textChanges: [
-                        // 				{
-                        // 					span: { start: obj.pos, length: 0 },
-                        // 					newText: newText.join('')
-                        // 				}
-                        // 			]
-                        // 		}
-                        // 	]
-                        // }
-                    }
+                    const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
+                    let clause = [];
+                    obj.nodeList.forEach(item => {
+                        //ts.createPropertyAccessChain()
+                        clause.push(ts.createCaseClause(item, [ts.createBreak()]));
+                    });
+                    clause.push(ts.createDefaultClause([ts.createBreak()]));
+                    let caseBlockNode = ts.createCaseBlock(clause);
+                    let switchNode = ts.createSwitch(ts.getMutableClone(obj.switchNode.expression), caseBlockNode);
+                    let edits = ts['textChanges'].ChangeTracker.with({
+                        host: info.languageServiceHost,
+                        formatContext: ts['formatting'].getFormatContext(formatOptions),
+                        preferences: preferences
+                    }, (tracker) => {
+                        //tracker.insertNodesAt(sourceFile, obj.pos, clause, {});
+                        //tracker.replaceNode(sourceFile, obj.caseBlockNode, caseBlockNode, {});
+                        tracker.replaceNode(sourceFile, obj.switchNode, switchNode, undefined);
+                    });
+                    return { edits };
                 }
             }
             return refactors;
@@ -137,29 +109,14 @@ function init(modules) {
     }
     function extractEnumMemberList(type, typeChecker, node) {
         let list;
-        /*
-         support
-         Enum
-         {
-            A,B,C
-         }
-         */
-        if (type.flags & ts.TypeFlags.EnumLike) {
-            if (type.aliasSymbol && type.aliasSymbol.exports) {
-                list = [];
-                type.aliasSymbol.exports.forEach(t => {
-                    list.push(typeChecker.symbolToExpression(t, 0, node));
-                });
-                return list;
-            }
-        }
-        /*
+        //enum is also a union
+        if (type.flags & ts.TypeFlags.Union) {
+            /*
             support
             type Union = 1|2|true;
 
             boolean is a Union => true|false
-         */
-        else if (type.flags & ts.TypeFlags.Union) {
+            */
             const trueType = typeChecker['getTrueType']();
             const falseType = typeChecker['getFalseType']();
             let unionType = type;

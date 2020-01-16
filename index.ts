@@ -33,7 +33,7 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			{
 				nodeAtCursor = nodeAtCursor.parent;
 			}
-
+			//Is the node is an empty switch statement?
 			if (nodeAtCursor &&
 				ts.isSwitchStatement(nodeAtCursor) &&
 				nodeAtCursor.caseBlock.clauses.length === 0 &&
@@ -41,6 +41,7 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			{
 				let typeChecker = info.languageService.getProgram().getTypeChecker();
 				let expType = typeChecker.getTypeAtLocation(nodeAtCursor.expression);
+				//Is the exp type is an Enum type?
 				let list = extractEnumMemberList(expType, typeChecker, nodeAtCursor);
 				if (list)
 				{
@@ -111,61 +112,27 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 				let obj = extractEnumInfo(fileName, positionOrRange, false);
 				if (obj)
 				{
-					if (1)
+					const sourceFile = info.languageService.getProgram().getSourceFile(fileName)
+					let clause: ts.CaseOrDefaultClause[] = [];
+					obj.nodeList.forEach(item =>
 					{
-						const sourceFile = info.languageService.getProgram().getSourceFile(fileName)
-						let clause: ts.CaseOrDefaultClause[] = [];
-						obj.nodeList.forEach(item =>
-						{
-							//ts.createPropertyAccessChain()
-							clause.push(ts.createCaseClause(item, [ts.createBreak()]));
-						});
-						clause.push(ts.createDefaultClause([ts.createBreak()]));
-						let caseBlockNode = ts.createCaseBlock(clause);
-						let switchNode = ts.createSwitch(ts.getMutableClone(obj.switchNode.expression), caseBlockNode);
-						let edits = ts['textChanges'].ChangeTracker.with({
-							host: info.languageServiceHost,
-							formatContext: ts['formatting'].getFormatContext(formatOptions),
-							preferences: preferences
-						}, (tracker) =>
-						{
-							//tracker.insertNodesAt(sourceFile, obj.pos, clause, {});
-							//tracker.replaceNode(sourceFile, obj.caseBlockNode, caseBlockNode, {});
-							tracker.replaceNode(sourceFile, obj.switchNode, switchNode, undefined);
-						});
-						return { edits };
-					}
-					else
+						//ts.createPropertyAccessChain()
+						clause.push(ts.createCaseClause(item, [ts.createBreak()]));
+					});
+					clause.push(ts.createDefaultClause([ts.createBreak()]));
+					let caseBlockNode = ts.createCaseBlock(clause);
+					let switchNode = ts.createSwitch(ts.getMutableClone(obj.switchNode.expression), caseBlockNode);
+					let edits = ts['textChanges'].ChangeTracker.with({
+						host: info.languageServiceHost,
+						formatContext: ts['formatting'].getFormatContext(formatOptions),
+						preferences: preferences
+					}, (tracker) =>
 					{
-						// let newText = [];
-						// let indent = info.languageService.getIndentationAtPosition(fileName, obj.pos, formatOptions) + formatOptions.indentSize;
-						// let indentText = '';
-						// for (let i = 0; i < indent; ++i)
-						// {
-						// 	indentText += ' ';
-						// }
-						// newText.push(formatOptions.newLineCharacter);
-						// obj.list.forEach(item =>
-						// {
-						// 	newText.push(indentText + 'case ' + item + ': break;' + formatOptions.newLineCharacter);
-						// })
-						// newText.push(indentText + 'default: break;');
-						// return {
-						// 	edits: [
-						// 		{
-						// 			fileName,
-						// 			textChanges: [
-						// 				{
-						// 					span: { start: obj.pos, length: 0 },
-						// 					newText: newText.join('')
-						// 				}
-						// 			]
-						// 		}
-
-						// 	]
-						// }
-					}
-
+						//tracker.insertNodesAt(sourceFile, obj.pos, clause, {});
+						//tracker.replaceNode(sourceFile, obj.caseBlockNode, caseBlockNode, {});
+						tracker.replaceNode(sourceFile, obj.switchNode, switchNode, undefined);
+					});
+					return { edits };
 				}
 			}
 			return refactors;
@@ -178,33 +145,15 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 	function extractEnumMemberList(type: ts.Type, typeChecker: ts.TypeChecker, node: ts.Node): ts.Expression[] | undefined
 	{
 		let list: ts.Expression[];
-		/*
-		 support 
-		 Enum
-		 {
-			A,B,C
-		 }
-		 */
-		if (type.flags & ts.TypeFlags.EnumLike)
+		//enum is also a union
+		if (type.flags & ts.TypeFlags.Union)
 		{
-			if (type.aliasSymbol && type.aliasSymbol.exports)
-			{
-				list = [];
-				type.aliasSymbol.exports.forEach(t =>
-				{
-					list.push(typeChecker.symbolToExpression(t, 0, node))
-				})
-				return list;
-			}
-		}
-		/*
+			/*
 			support
 			type Union = 1|2|true;
 
 			boolean is a Union => true|false
-		 */
-		else if (type.flags & ts.TypeFlags.Union)
-		{
+		    */
 			const trueType = typeChecker['getTrueType']();
 			const falseType = typeChecker['getFalseType']();
 			let unionType = type as ts.UnionType;
