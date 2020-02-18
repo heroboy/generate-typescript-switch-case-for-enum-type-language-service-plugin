@@ -6,8 +6,14 @@ const assert = require("assert");
 const myplugin = require('../index');
 const ts_morph_1 = require("ts-morph");
 function TestWithFile(fileName) {
+    //测试方法：
+    //在测试的ts文件中，用/*a*/ 表示一个检测点。（一个字符，不能有空格）
+    //在任意一行 //a=>[XX,YY] ，表示在这个插入点对应生成的case语句的内容。
+    //然后下面的测试代码，就会解析ts文件中的上面两种内容，然后测试，看看生成的代码是不是符合。
     describe("Test file:" + fileName, function () {
         let project = new ts_morph_1.Project({ useInMemoryFileSystem: true });
+        //这里直接修改了ts-morph的js代码，使得能获得host
+        //几个null，没有用到就算了。我估计只有在language server中才会有这几个对象吧，所以也没办法获取到。
         let info = {
             project: null,
             languageService: project.getLanguageService().compilerObject,

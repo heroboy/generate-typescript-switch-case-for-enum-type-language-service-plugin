@@ -49,6 +49,12 @@ export function loadSource(fileName: string): SourceCodeInfo
 			mapping[mm[1]] = {
 				items: mm[2].split(',').map(s => s.trim())
 			};
+			if (mm[2].trim() === '')
+			{
+				mapping[mm[1]] = {
+					items: []
+				};
+			}
 		}
 	} while (mm);
 

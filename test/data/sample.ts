@@ -44,19 +44,34 @@ namespace YY
 
 function test004(x: YY.InYYEnumType)
 {
-	
+
 	switch (/*2*/x)
 	{
 		//should generate with namespace
 	}
 }
 
-function test005(x: YY.InYYEnumType|EnumType)
+function test005(x: YY.InYYEnumType | EnumType)
 {
-	
+
 	switch (/*3*/x)
 	{
 		//should generate with namespace
+	}
+}
+
+function test006(x: 1 | 2)
+{
+	switch (/*4*/x)
+	{
+		case 1: break;
+		case 2: break;
+		default: break;
+	}
+
+	switch (/*5*/x)
+	{
+		case 1: x++;
 	}
 }
 
@@ -69,5 +84,6 @@ function test005(x: YY.InYYEnumType|EnumType)
 //1 => [InYYEnumType.A,InYYEnumType.B,InYYEnumType.C]
 //2 => [YY.InYYEnumType.A,YY.InYYEnumType.B,YY.InYYEnumType.C]
 //3 => [YY.InYYEnumType.A,YY.InYYEnumType.B,YY.InYYEnumType.C,EnumType.A,EnumType.B,EnumType.C]
-
+//4 => [1,2]
+//5 => []
 

@@ -8,6 +8,15 @@ function init(modules) {
             const x = info.languageService[k];
             proxy[k] = (...args) => x.apply(info.languageService, args);
         }
+        function isEmptyCaseBlock(node) {
+            for (let c of node.caseBlock.clauses) {
+                for (let s of c.statements) {
+                    if (!ts.isBreakStatement(s))
+                        return false;
+                }
+            }
+            return node.caseBlock.getChildCount() === 3; // ===3 mease clauses is empty. only ['{', SyntaxList, '}']
+        }
         function extractEnumInfo(fileName, positionOrRange, simple) {
             const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
             if (!sourceFile)
@@ -20,8 +29,7 @@ function init(modules) {
             //Is the node is an empty switch statement?
             if (nodeAtCursor &&
                 ts.isSwitchStatement(nodeAtCursor) &&
-                nodeAtCursor.caseBlock.clauses.length === 0 &&
-                nodeAtCursor.caseBlock.getChildCount() === 3) // ===3 mease clauses is empty. only ['{', SyntaxList, '}']
+                isEmptyCaseBlock(nodeAtCursor)) // ===3 mease clauses is empty. only ['{', SyntaxList, '}']
              {
                 let typeChecker = info.languageService.getProgram().getTypeChecker();
                 let expType = typeChecker.getTypeAtLocation(nodeAtCursor.expression);

@@ -20,6 +20,19 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			nodeList: ts.Expression[];
 			switchNode: ts.SwitchStatement;
 		}
+		function isEmptyCaseBlock(node: ts.SwitchStatement)
+		{
+			for (let c of node.caseBlock.clauses)
+			{
+				for (let s of c.statements)
+				{
+					if (!ts.isBreakStatement(s))
+						return false;
+				}
+			}
+			return node.caseBlock.getChildCount() === 3;// ===3 mease clauses is empty. only ['{', SyntaxList, '}']
+		}
+
 		function extractEnumInfo(fileName: string, positionOrRange: number | ts.TextRange, simple: false): IGenInfo;
 		function extractEnumInfo(fileName: string, positionOrRange: number | ts.TextRange, simple: true): boolean
 		function extractEnumInfo(fileName: string, positionOrRange: number | ts.TextRange, simple: boolean): boolean | IGenInfo
@@ -36,8 +49,7 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			//Is the node is an empty switch statement?
 			if (nodeAtCursor &&
 				ts.isSwitchStatement(nodeAtCursor) &&
-				nodeAtCursor.caseBlock.clauses.length === 0 &&
-				nodeAtCursor.caseBlock.getChildCount() === 3)// ===3 mease clauses is empty. only ['{', SyntaxList, '}']
+				isEmptyCaseBlock(nodeAtCursor))// ===3 mease clauses is empty. only ['{', SyntaxList, '}']
 			{
 				let typeChecker = info.languageService.getProgram().getTypeChecker();
 				let expType = typeChecker.getTypeAtLocation(nodeAtCursor.expression);
