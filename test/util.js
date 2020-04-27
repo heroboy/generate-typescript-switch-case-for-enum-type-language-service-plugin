@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.arrayEqual = exports.hasRefactorInfo = exports.extractAllCaseItems = exports.loadSource = void 0;
 const fs = require("fs");
 function loadSource(fileName) {
     let sourceCode = fs.readFileSync(fileName, { encoding: 'utf8' });
     let lookPositions = [];
     //  /*a*/
-    const re_lookPos = /\/\*([a-zA-Z0-9])\*\//;
+    const re_lookPos = /\/\*([a-zA-Z0-9]{1,2})\*\//;
     while (true) {
         let m = re_lookPos.exec(sourceCode);
         if (!m)
@@ -17,7 +18,7 @@ function loadSource(fileName) {
         sourceCode = sourceCode.slice(0, m.index) + sourceCode.slice(m.index + m[0].length);
     }
     //
-    const re_result = /^\s*\/\/\s*([a-zA-Z0-9])\s*=>\s*\[([^\]]*)\]/gm;
+    const re_result = /^\s*\/\/\s*([a-zA-Z0-9]{1,2})\s*=>\s*\[([^\]]*)\]/gm;
     let mm;
     let mapping = {};
     do {

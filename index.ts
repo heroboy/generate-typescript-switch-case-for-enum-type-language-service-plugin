@@ -162,7 +162,10 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 		{
 			/*
 			support
-			type Union = 1|2|true;
+			class A{};
+			class B{};
+			type Union = 1|2|true|A|B;
+			
 
 			boolean is a Union => true|false
 		    */
@@ -172,7 +175,9 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			let isAllLiterial = unionType.types.every(t =>
 			{
 				let flag = t.flags;
-				return (flag & ts.TypeFlags.NumberLiteral) || (flag & ts.TypeFlags.StringLiteral) || t === trueType || t === falseType;
+
+				return (flag & ts.TypeFlags.NumberLiteral) || (flag & ts.TypeFlags.StringLiteral) || t === trueType || t === falseType ||
+					(flag & ts.TypeFlags.Object) && ((t as ts.ObjectType).objectFlags & ts.ObjectFlags.Class);//class type. 'class A{}'
 			})
 			if (isAllLiterial)
 			{

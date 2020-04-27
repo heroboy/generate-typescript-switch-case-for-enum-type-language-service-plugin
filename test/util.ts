@@ -24,7 +24,7 @@ export function loadSource(fileName: string): SourceCodeInfo
 		pos: number;
 	}[] = [];
 	//  /*a*/
-	const re_lookPos = /\/\*([a-zA-Z0-9])\*\//;
+	const re_lookPos = /\/\*([a-zA-Z0-9]{1,2})\*\//;
 	while (true)
 	{
 		let m = re_lookPos.exec(sourceCode);
@@ -38,7 +38,7 @@ export function loadSource(fileName: string): SourceCodeInfo
 
 
 	//
-	const re_result = /^\s*\/\/\s*([a-zA-Z0-9])\s*=>\s*\[([^\]]*)\]/gm;
+	const re_result = /^\s*\/\/\s*([a-zA-Z0-9]{1,2})\s*=>\s*\[([^\]]*)\]/gm;
 	let mm: RegExpExecArray;
 	let mapping: SourceCodeInfo['mapping'] = {};
 	do 
