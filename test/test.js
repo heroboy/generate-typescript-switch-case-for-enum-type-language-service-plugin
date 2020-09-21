@@ -28,7 +28,7 @@ function TestWithFile(fileName) {
                 assert(sourceCodeInfo.mapping[obj.name], `pos '${obj.name}' must exists`);
             }
         });
-        project.createSourceFile(sourceCodeInfo.fileName, sourceCodeInfo.sourceCode);
+        project.createSourceFile(sourceCodeInfo.fileName, sourceCodeInfo.sourceCode, { scriptKind: ts.ScriptKind.JS });
         for (let d of project.getPreEmitDiagnostics()) {
             console.log('compile diagnostics: ' + d.getMessageText());
         }
@@ -53,4 +53,5 @@ function TestWithFile(fileName) {
         }
     });
 }
+TestWithFile(__dirname + '/data/jssample.js');
 TestWithFile(__dirname + '/data/sample.ts');

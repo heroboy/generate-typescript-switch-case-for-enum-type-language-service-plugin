@@ -1,9 +1,9 @@
-import * as fs from 'fs'
-import * as ts from 'typescript/lib/tsserverlibrary'
-import * as util from './util'
+import * as fs from 'fs';
+import * as ts from 'typescript/lib/tsserverlibrary';
+import * as util from './util';
 import * as assert from 'assert';
 const myplugin = require('../index');
-import { Project } from 'ts-morph'
+import { Project } from 'ts-morph';
 
 function TestWithFile(fileName: string)
 {
@@ -23,7 +23,7 @@ function TestWithFile(fileName: string)
 			serverHost: null,
 			config: {}
 		};
-		let ls: ts.LanguageService = myplugin({ typescript: ts }).create(info)
+		let ls: ts.LanguageService = myplugin({ typescript: ts }).create(info);
 		let sourceCodeInfo = util.loadSource(fileName);
 		it('assert loadSource corrent', function ()
 		{
@@ -34,7 +34,8 @@ function TestWithFile(fileName: string)
 		});
 
 
-		project.createSourceFile(sourceCodeInfo.fileName, sourceCodeInfo.sourceCode);
+		project.createSourceFile(sourceCodeInfo.fileName, sourceCodeInfo.sourceCode,
+			{ scriptKind: ts.ScriptKind.JS });
 
 		for (let d of project.getPreEmitDiagnostics())
 		{
@@ -65,8 +66,9 @@ function TestWithFile(fileName: string)
 			});
 
 		}
-	})
+	});
 }
-
+TestWithFile(__dirname + '/data/jssample.js');
 TestWithFile(__dirname + '/data/sample.ts');
+
 

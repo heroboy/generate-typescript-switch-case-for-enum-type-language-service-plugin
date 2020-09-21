@@ -1,5 +1,6 @@
 "use strict";
 //import { TypeChecker, Expression } from 'typescript/lib/tsserverlibrary'
+const tsserverlibrary_1 = require("typescript/lib/tsserverlibrary");
 function init(modules) {
     const ts = modules.typescript;
     function create(info) {
@@ -21,6 +22,9 @@ function init(modules) {
             const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
             if (!sourceFile)
                 return false;
+            if (sourceFile.isDeclarationFile)
+                return;
+            const isJs = !!(sourceFile.flags & tsserverlibrary_1.NodeFlags.JavaScriptFile);
             let nodeAtCursor = findChildContainingPosition(sourceFile, positionOrRangeToNumber(positionOrRange));
             while (nodeAtCursor &&
                 !ts.isSwitchStatement(nodeAtCursor)) {
@@ -34,44 +38,19 @@ function init(modules) {
                 let typeChecker = info.languageService.getProgram().getTypeChecker();
                 let expType = typeChecker.getTypeAtLocation(nodeAtCursor.expression);
                 //Is the exp type is an Enum type?
-                let list = extractEnumMemberList(expType, typeChecker, nodeAtCursor);
+                let list = extractEnumMemberList(expType, typeChecker, nodeAtCursor, isJs);
                 if (list) {
                     if (simple)
                         return true;
                     let pos = nodeAtCursor.caseBlock.getStart() + 1;
                     return { pos, caseBlockNode: nodeAtCursor.caseBlock, nodeList: list, switchNode: nodeAtCursor };
                 }
-                // if (expType.flags & ts.TypeFlags.Literal)
-                // {
-                // 	expType = (expType as ts.LiteralType).regularType;
-                // }
-                // if ((expType.flags & ts.TypeFlags.EnumLike) &&
-                // 	expType.aliasSymbol)
-                // {
-                // 	if (simple)
-                // 	{
-                // 		return true;
-                // 	}
-                // 	let t2 = expType;
-                // 	if (t2.aliasSymbol)
-                // 	{
-                // 		let pos = nodeAtCursor.caseBlock.getStart() + 1;
-                // 		let list: string[] = [];
-                // 		let nodeList: ts.Expression[] = [];
-                // 		t2.aliasSymbol.exports.forEach(t =>
-                // 		{
-                // 			list.push(typeChecker.symbolToString(t, nodeAtCursor));
-                // 			nodeList.push(typeChecker.symbolToExpression(t, 0, nodeAtCursor));
-                // 		});
-                // 		//let list = t2.types.map(t => typeChecker.typeToString(t));
-                // 		return { pos, list, caseBlockNode: nodeAtCursor.caseBlock, nodeList, switchNode: nodeAtCursor }
-                // 	}
             }
         }
         // Here starts our second behavior: a refactor that will always be suggested no matter where is the cursor and does nothing
         // overriding getApplicableRefactors we add our refactor metadata only if the user has the cursor on the place we desire, in our case a class or interface declaration identifier
-        proxy.getApplicableRefactors = (fileName, positionOrRange) => {
-            const refactors = info.languageService.getApplicableRefactors(fileName, positionOrRange, undefined) || [];
+        proxy.getApplicableRefactors = function (fileName, positionOrRange) {
+            const refactors = info.languageService.getApplicableRefactors.apply(this, arguments) || [];
             const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
             if (!sourceFile) {
                 return refactors;
@@ -115,7 +94,7 @@ function init(modules) {
         };
         return proxy;
     }
-    function extractEnumMemberList(type, typeChecker, node) {
+    function extractEnumMemberList(type, typeChecker, node, isJs) {
         let list;
         //enum is also a union
         if (type.flags & ts.TypeFlags.Union) {
@@ -133,13 +112,16 @@ function init(modules) {
             let unionType = type;
             let isAllLiterial = unionType.types.every(t => {
                 let flag = t.flags;
-                return (flag & ts.TypeFlags.NumberLiteral) || (flag & ts.TypeFlags.StringLiteral) || t === trueType || t === falseType ||
-                    (flag & ts.TypeFlags.Object) && (t.objectFlags & ts.ObjectFlags.Class); //class type. 'class A{}'
+                return (flag & ts.TypeFlags.NumberLiteral) ||
+                    (flag & ts.TypeFlags.StringLiteral) ||
+                    t === trueType ||
+                    t === falseType ||
+                    !isJs && (flag & ts.TypeFlags.Object) && (t.objectFlags & ts.ObjectFlags.Class); //class type. 'class A{}'
             });
             if (isAllLiterial) {
                 return unionType.types.map(t => {
                     let lt = t;
-                    if (t.symbol)
+                    if (!isJs && t.symbol)
                         return typeChecker.symbolToExpression(t.symbol, 0, node);
                     if (t === trueType)
                         return ts.createTrue();

@@ -1,15 +1,17 @@
 //import { TypeChecker, Expression } from 'typescript/lib/tsserverlibrary'
 
-function init(modules: { typescript: typeof import('typescript/lib/tsserverlibrary') })
+import { NodeFlags } from 'typescript/lib/tsserverlibrary';
+
+function init(modules: { typescript: typeof import('typescript/lib/tsserverlibrary'); })
 {
-	const ts = modules.typescript
+	const ts = modules.typescript;
 	function create(info: ts.server.PluginCreateInfo): ts.LanguageService
 	{
-		const proxy: ts.LanguageService = Object.create(null)
+		const proxy: ts.LanguageService = Object.create(null);
 		for (let k of Object.keys(info.languageService) as Array<keyof ts.LanguageService>)
 		{
-			const x = info.languageService[k]
-			proxy[k] = (...args: Array<{}>) => x!.apply(info.languageService, args)
+			const x = info.languageService[k];
+			proxy[k] = (...args: Array<{}>) => x!.apply(info.languageService, args);
 		}
 
 		interface IGenInfo
@@ -34,13 +36,14 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 		}
 
 		function extractEnumInfo(fileName: string, positionOrRange: number | ts.TextRange, simple: false): IGenInfo;
-		function extractEnumInfo(fileName: string, positionOrRange: number | ts.TextRange, simple: true): boolean
+		function extractEnumInfo(fileName: string, positionOrRange: number | ts.TextRange, simple: true): boolean;
 		function extractEnumInfo(fileName: string, positionOrRange: number | ts.TextRange, simple: boolean): boolean | IGenInfo
 		{
-			const sourceFile = info.languageService.getProgram().getSourceFile(fileName)
+			const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
 			if (!sourceFile) return false;
-
-			let nodeAtCursor = findChildContainingPosition(sourceFile, positionOrRangeToNumber(positionOrRange))
+			if (sourceFile.isDeclarationFile) return;
+			const isJs = !!(sourceFile.flags & NodeFlags.JavaScriptFile);
+			let nodeAtCursor = findChildContainingPosition(sourceFile, positionOrRangeToNumber(positionOrRange));
 			while (nodeAtCursor &&
 				!ts.isSwitchStatement(nodeAtCursor))
 			{
@@ -54,54 +57,27 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 				let typeChecker = info.languageService.getProgram().getTypeChecker();
 				let expType = typeChecker.getTypeAtLocation(nodeAtCursor.expression);
 				//Is the exp type is an Enum type?
-				let list = extractEnumMemberList(expType, typeChecker, nodeAtCursor);
+				let list = extractEnumMemberList(expType, typeChecker, nodeAtCursor, isJs);
 				if (list)
 				{
 					if (simple) return true;
 					let pos = nodeAtCursor.caseBlock.getStart() + 1;
 					return { pos, caseBlockNode: nodeAtCursor.caseBlock, nodeList: list, switchNode: nodeAtCursor };
 				}
-				// if (expType.flags & ts.TypeFlags.Literal)
-				// {
-				// 	expType = (expType as ts.LiteralType).regularType;
-				// }
-				// if ((expType.flags & ts.TypeFlags.EnumLike) &&
-				// 	expType.aliasSymbol)
-				// {
-				// 	if (simple)
-				// 	{
-				// 		return true;
-				// 	}
-
-				// 	let t2 = expType;
-				// 	if (t2.aliasSymbol)
-				// 	{
-				// 		let pos = nodeAtCursor.caseBlock.getStart() + 1;
-				// 		let list: string[] = [];
-				// 		let nodeList: ts.Expression[] = [];
-				// 		t2.aliasSymbol.exports.forEach(t =>
-				// 		{
-				// 			list.push(typeChecker.symbolToString(t, nodeAtCursor));
-				// 			nodeList.push(typeChecker.symbolToExpression(t, 0, nodeAtCursor));
-				// 		});
-				// 		//let list = t2.types.map(t => typeChecker.typeToString(t));
-
-				// 		return { pos, list, caseBlockNode: nodeAtCursor.caseBlock, nodeList, switchNode: nodeAtCursor }
-				// 	}
 			}
 		}
 
 
 		// Here starts our second behavior: a refactor that will always be suggested no matter where is the cursor and does nothing
 		// overriding getApplicableRefactors we add our refactor metadata only if the user has the cursor on the place we desire, in our case a class or interface declaration identifier
-		proxy.getApplicableRefactors = (fileName, positionOrRange): ts.ApplicableRefactorInfo[] =>
-		{
+		proxy.getApplicableRefactors = function(fileName, positionOrRange): ts.ApplicableRefactorInfo[] {
 
-			const refactors = info.languageService.getApplicableRefactors(fileName, positionOrRange, undefined) || []
-			const sourceFile = info.languageService.getProgram().getSourceFile(fileName)
+			const refactors = info.languageService.getApplicableRefactors.apply(this,arguments) || [];
+			const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
+			
 			if (!sourceFile)
 			{
-				return refactors
+				return refactors;
 			}
 
 			if (extractEnumInfo(fileName, positionOrRange, true))
@@ -113,18 +89,18 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 				});
 			}
 
-			return refactors
-		}
+			return refactors;
+		};
 
 		proxy.getEditsForRefactor = (fileName, formatOptions, positionOrRange, refactorName, actionName, preferences) =>
 		{
-			const refactors = info.languageService.getEditsForRefactor(fileName, formatOptions, positionOrRange, refactorName, actionName, preferences)
+			const refactors = info.languageService.getEditsForRefactor(fileName, formatOptions, positionOrRange, refactorName, actionName, preferences);
 			if (actionName === 'generate-switch-case')
 			{
 				let obj = extractEnumInfo(fileName, positionOrRange, false);
 				if (obj)
 				{
-					const sourceFile = info.languageService.getProgram().getSourceFile(fileName)
+					const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
 					let clause: ts.CaseOrDefaultClause[] = [];
 					obj.nodeList.forEach(item =>
 					{
@@ -148,13 +124,13 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 				}
 			}
 			return refactors;
-		}
+		};
 
 
-		return proxy
+		return proxy;
 	}
 
-	function extractEnumMemberList(type: ts.Type, typeChecker: ts.TypeChecker, node: ts.Node): ts.Expression[] | undefined
+	function extractEnumMemberList(type: ts.Type, typeChecker: ts.TypeChecker, node: ts.Node, isJs: boolean): ts.Expression[] | undefined
 	{
 		let list: ts.Expression[];
 		//enum is also a union
@@ -176,19 +152,22 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			{
 				let flag = t.flags;
 
-				return (flag & ts.TypeFlags.NumberLiteral) || (flag & ts.TypeFlags.StringLiteral) || t === trueType || t === falseType ||
-					(flag & ts.TypeFlags.Object) && ((t as ts.ObjectType).objectFlags & ts.ObjectFlags.Class);//class type. 'class A{}'
-			})
+				return (flag & ts.TypeFlags.NumberLiteral) || 
+						(flag & ts.TypeFlags.StringLiteral) || 
+						t === trueType || 
+						t === falseType ||
+						!isJs && (flag & ts.TypeFlags.Object) && ((t as ts.ObjectType).objectFlags & ts.ObjectFlags.Class);//class type. 'class A{}'
+			});
 			if (isAllLiterial)
 			{
 				return unionType.types.map(t =>
 				{
 					let lt = t as ts.LiteralType;
-					if (t.symbol) return typeChecker.symbolToExpression(t.symbol, 0, node);
+					if (!isJs && t.symbol) return typeChecker.symbolToExpression(t.symbol, 0, node);
 					if (t === trueType) return ts.createTrue();
 					if (t === falseType) return ts.createFalse();
-					return ts.createLiteral(lt.value)
-				})
+					return ts.createLiteral(lt.value);
+				});
 			}
 		}
 		return;
@@ -200,7 +179,7 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 	{
 		return typeof positionOrRange === 'number'
 			? { pos: positionOrRange, end: positionOrRange }
-			: positionOrRange
+			: positionOrRange;
 	}
 
 	/**normalize the parameter so we are sure is of type number */
@@ -208,7 +187,7 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 	{
 		return typeof positionOrRange === 'number' ?
 			positionOrRange :
-			(positionOrRange as ts.TextRange).pos
+			(positionOrRange as ts.TextRange).pos;
 	}
 
 	/** from given position we find the child node that contains it */
@@ -223,10 +202,10 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			}
 		}
 
-		return find(sourceFile)
+		return find(sourceFile);
 	}
 
-	return { create }
+	return { create };
 }
 
-export = init
+export = init;
