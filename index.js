@@ -1,17 +1,28 @@
 "use strict";
 //import { TypeChecker, Expression } from 'typescript/lib/tsserverlibrary'
-const tsserverlibrary_1 = require("typescript/lib/tsserverlibrary");
 function init(modules) {
-    const ts = modules.typescript;
+    var ts = modules.typescript;
     function create(info) {
-        const proxy = Object.create(null);
-        for (let k of Object.keys(info.languageService)) {
-            const x = info.languageService[k];
-            proxy[k] = (...args) => x.apply(info.languageService, args);
+        var proxy = Object.create(null);
+        var _loop_1 = function (k) {
+            var x = info.languageService[k];
+            proxy[k] = function () {
+                var args = [];
+                for (var _i = 0; _i < arguments.length; _i++) {
+                    args[_i] = arguments[_i];
+                }
+                return x.apply(info.languageService, args);
+            };
+        };
+        for (var _i = 0, _a = Object.keys(info.languageService); _i < _a.length; _i++) {
+            var k = _a[_i];
+            _loop_1(k);
         }
         function isEmptyCaseBlock(node) {
-            for (let c of node.caseBlock.clauses) {
-                for (let s of c.statements) {
+            for (var _i = 0, _a = node.caseBlock.clauses; _i < _a.length; _i++) {
+                var c = _a[_i];
+                for (var _b = 0, _c = c.statements; _b < _c.length; _b++) {
+                    var s = _c[_b];
                     if (!ts.isBreakStatement(s))
                         return false;
                 }
@@ -19,13 +30,15 @@ function init(modules) {
             return node.caseBlock.getChildCount() === 3; // ===3 mease clauses is empty. only ['{', SyntaxList, '}']
         }
         function extractEnumInfo(fileName, positionOrRange, simple) {
-            const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
+            var sourceFile = info.languageService.getProgram().getSourceFile(fileName);
             if (!sourceFile)
                 return false;
             if (sourceFile.isDeclarationFile)
                 return;
-            const isJs = !!(sourceFile.flags & tsserverlibrary_1.NodeFlags.JavaScriptFile);
-            let nodeAtCursor = findChildContainingPosition(sourceFile, positionOrRangeToNumber(positionOrRange));
+            //I can not `import { NodeFlags } from 'typescript/lib/tsserverlibrary';`
+            var JavaScriptFileNodeFlags = 131072;
+            var isJs = !!(sourceFile.flags & JavaScriptFileNodeFlags);
+            var nodeAtCursor = findChildContainingPosition(sourceFile, positionOrRangeToNumber(positionOrRange));
             while (nodeAtCursor &&
                 !ts.isSwitchStatement(nodeAtCursor)) {
                 nodeAtCursor = nodeAtCursor.parent;
@@ -35,23 +48,23 @@ function init(modules) {
                 ts.isSwitchStatement(nodeAtCursor) &&
                 isEmptyCaseBlock(nodeAtCursor)) // ===3 mease clauses is empty. only ['{', SyntaxList, '}']
              {
-                let typeChecker = info.languageService.getProgram().getTypeChecker();
-                let expType = typeChecker.getTypeAtLocation(nodeAtCursor.expression);
+                var typeChecker = info.languageService.getProgram().getTypeChecker();
+                var expType = typeChecker.getTypeAtLocation(nodeAtCursor.expression);
                 //Is the exp type is an Enum type?
-                let list = extractEnumMemberList(expType, typeChecker, nodeAtCursor, isJs);
+                var list = extractEnumMemberList(expType, typeChecker, nodeAtCursor, isJs);
                 if (list) {
                     if (simple)
                         return true;
-                    let pos = nodeAtCursor.caseBlock.getStart() + 1;
-                    return { pos, caseBlockNode: nodeAtCursor.caseBlock, nodeList: list, switchNode: nodeAtCursor };
+                    var pos = nodeAtCursor.caseBlock.getStart() + 1;
+                    return { pos: pos, caseBlockNode: nodeAtCursor.caseBlock, nodeList: list, switchNode: nodeAtCursor };
                 }
             }
         }
         // Here starts our second behavior: a refactor that will always be suggested no matter where is the cursor and does nothing
         // overriding getApplicableRefactors we add our refactor metadata only if the user has the cursor on the place we desire, in our case a class or interface declaration identifier
         proxy.getApplicableRefactors = function (fileName, positionOrRange) {
-            const refactors = info.languageService.getApplicableRefactors.apply(this, arguments) || [];
-            const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
+            var refactors = info.languageService.getApplicableRefactors.apply(this, arguments) || [];
+            var sourceFile = info.languageService.getProgram().getSourceFile(fileName);
             if (!sourceFile) {
                 return refactors;
             }
@@ -59,35 +72,35 @@ function init(modules) {
                 refactors.push({
                     name: 'generate-switch-case',
                     description: 'generate switch case desc',
-                    actions: [{ name: 'generate-switch-case', description: 'Generate Switch Case' }],
+                    actions: [{ name: 'generate-switch-case', description: 'Generate Switch Case' }]
                 });
             }
             return refactors;
         };
-        proxy.getEditsForRefactor = (fileName, formatOptions, positionOrRange, refactorName, actionName, preferences) => {
-            const refactors = info.languageService.getEditsForRefactor(fileName, formatOptions, positionOrRange, refactorName, actionName, preferences);
+        proxy.getEditsForRefactor = function (fileName, formatOptions, positionOrRange, refactorName, actionName, preferences) {
+            var refactors = info.languageService.getEditsForRefactor(fileName, formatOptions, positionOrRange, refactorName, actionName, preferences);
             if (actionName === 'generate-switch-case') {
-                let obj = extractEnumInfo(fileName, positionOrRange, false);
-                if (obj) {
-                    const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
-                    let clause = [];
-                    obj.nodeList.forEach(item => {
+                var obj_1 = extractEnumInfo(fileName, positionOrRange, false);
+                if (obj_1) {
+                    var sourceFile_1 = info.languageService.getProgram().getSourceFile(fileName);
+                    var clause_1 = [];
+                    obj_1.nodeList.forEach(function (item) {
                         //ts.createPropertyAccessChain()
-                        clause.push(ts.createCaseClause(item, [ts.createBreak()]));
+                        clause_1.push(ts.createCaseClause(item, [ts.createBreak()]));
                     });
-                    clause.push(ts.createDefaultClause([ts.createBreak()]));
-                    let caseBlockNode = ts.createCaseBlock(clause);
-                    let switchNode = ts.createSwitch(ts.getMutableClone(obj.switchNode.expression), caseBlockNode);
-                    let edits = ts['textChanges'].ChangeTracker.with({
+                    clause_1.push(ts.createDefaultClause([ts.createBreak()]));
+                    var caseBlockNode = ts.createCaseBlock(clause_1);
+                    var switchNode_1 = ts.createSwitch(ts.getMutableClone(obj_1.switchNode.expression), caseBlockNode);
+                    var edits = ts['textChanges'].ChangeTracker["with"]({
                         host: info.languageServiceHost,
                         formatContext: ts['formatting'].getFormatContext(formatOptions),
                         preferences: preferences
-                    }, (tracker) => {
+                    }, function (tracker) {
                         //tracker.insertNodesAt(sourceFile, obj.pos, clause, {});
                         //tracker.replaceNode(sourceFile, obj.caseBlockNode, caseBlockNode, {});
-                        tracker.replaceNode(sourceFile, obj.switchNode, switchNode, undefined);
+                        tracker.replaceNode(sourceFile_1, obj_1.switchNode, switchNode_1, undefined);
                     });
-                    return { edits };
+                    return { edits: edits };
                 }
             }
             return refactors;
@@ -95,7 +108,7 @@ function init(modules) {
         return proxy;
     }
     function extractEnumMemberList(type, typeChecker, node, isJs) {
-        let list;
+        var list;
         //enum is also a union
         if (type.flags & ts.TypeFlags.Union) {
             /*
@@ -107,25 +120,25 @@ function init(modules) {
 
             boolean is a Union => true|false
             */
-            const trueType = typeChecker['getTrueType']();
-            const falseType = typeChecker['getFalseType']();
-            let unionType = type;
-            let isAllLiterial = unionType.types.every(t => {
-                let flag = t.flags;
+            var trueType_1 = typeChecker['getTrueType']();
+            var falseType_1 = typeChecker['getFalseType']();
+            var unionType = type;
+            var isAllLiterial = unionType.types.every(function (t) {
+                var flag = t.flags;
                 return (flag & ts.TypeFlags.NumberLiteral) ||
                     (flag & ts.TypeFlags.StringLiteral) ||
-                    t === trueType ||
-                    t === falseType ||
+                    t === trueType_1 ||
+                    t === falseType_1 ||
                     !isJs && (flag & ts.TypeFlags.Object) && (t.objectFlags & ts.ObjectFlags.Class); //class type. 'class A{}'
             });
             if (isAllLiterial) {
-                return unionType.types.map(t => {
-                    let lt = t;
+                return unionType.types.map(function (t) {
+                    var lt = t;
                     if (!isJs && t.symbol)
-                        return typeChecker.symbolToExpression(t.symbol, 0, node);
-                    if (t === trueType)
+                        return typeChecker.symbolToExpression(t.symbol, 0, node, 0);
+                    if (t === trueType_1)
                         return ts.createTrue();
-                    if (t === falseType)
+                    if (t === falseType_1)
                         return ts.createFalse();
                     return ts.createLiteral(lt.value);
                 });
@@ -156,6 +169,6 @@ function init(modules) {
         }
         return find(sourceFile);
     }
-    return { create };
+    return { create: create };
 }
 module.exports = init;

@@ -1,6 +1,6 @@
 //import { TypeChecker, Expression } from 'typescript/lib/tsserverlibrary'
 
-import { NodeFlags } from 'typescript/lib/tsserverlibrary';
+
 
 function init(modules: { typescript: typeof import('typescript/lib/tsserverlibrary'); })
 {
@@ -42,7 +42,9 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
 			if (!sourceFile) return false;
 			if (sourceFile.isDeclarationFile) return;
-			const isJs = !!(sourceFile.flags & NodeFlags.JavaScriptFile);
+			//I can not `import { NodeFlags } from 'typescript/lib/tsserverlibrary';`
+			const JavaScriptFileNodeFlags = 131072;
+			const isJs = !!(sourceFile.flags & JavaScriptFileNodeFlags);
 			let nodeAtCursor = findChildContainingPosition(sourceFile, positionOrRangeToNumber(positionOrRange));
 			while (nodeAtCursor &&
 				!ts.isSwitchStatement(nodeAtCursor))
@@ -70,11 +72,12 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 
 		// Here starts our second behavior: a refactor that will always be suggested no matter where is the cursor and does nothing
 		// overriding getApplicableRefactors we add our refactor metadata only if the user has the cursor on the place we desire, in our case a class or interface declaration identifier
-		proxy.getApplicableRefactors = function(fileName, positionOrRange): ts.ApplicableRefactorInfo[] {
+		proxy.getApplicableRefactors = function (fileName, positionOrRange): ts.ApplicableRefactorInfo[]
+		{
 
-			const refactors = info.languageService.getApplicableRefactors.apply(this,arguments) || [];
+			const refactors = info.languageService.getApplicableRefactors.apply(this, arguments) || [];
 			const sourceFile = info.languageService.getProgram().getSourceFile(fileName);
-			
+
 			if (!sourceFile)
 			{
 				return refactors;
@@ -144,7 +147,7 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			
 
 			boolean is a Union => true|false
-		    */
+			*/
 			const trueType = typeChecker['getTrueType']();
 			const falseType = typeChecker['getFalseType']();
 			let unionType = type as ts.UnionType;
@@ -152,18 +155,18 @@ function init(modules: { typescript: typeof import('typescript/lib/tsserverlibra
 			{
 				let flag = t.flags;
 
-				return (flag & ts.TypeFlags.NumberLiteral) || 
-						(flag & ts.TypeFlags.StringLiteral) || 
-						t === trueType || 
-						t === falseType ||
-						!isJs && (flag & ts.TypeFlags.Object) && ((t as ts.ObjectType).objectFlags & ts.ObjectFlags.Class);//class type. 'class A{}'
+				return (flag & ts.TypeFlags.NumberLiteral) ||
+					(flag & ts.TypeFlags.StringLiteral) ||
+					t === trueType ||
+					t === falseType ||
+					!isJs && (flag & ts.TypeFlags.Object) && ((t as ts.ObjectType).objectFlags & ts.ObjectFlags.Class);//class type. 'class A{}'
 			});
 			if (isAllLiterial)
 			{
 				return unionType.types.map(t =>
 				{
 					let lt = t as ts.LiteralType;
-					if (!isJs && t.symbol) return typeChecker.symbolToExpression(t.symbol, 0, node);
+					if (!isJs && t.symbol) return typeChecker.symbolToExpression(t.symbol, 0, node, 0);
 					if (t === trueType) return ts.createTrue();
 					if (t === falseType) return ts.createFalse();
 					return ts.createLiteral(lt.value);
